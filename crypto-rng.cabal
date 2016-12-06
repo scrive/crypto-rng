@@ -1,7 +1,10 @@
 name:                crypto-rng
 version:             0.1.0.0
 synopsis:            Cryptographic random number generator.
--- description:
+
+description:         Convenient wrapper for the cryptographic random generator
+                     provided by the DRBG package.
+
 homepage:            https://github.com/scrive/crypto-rng
 license:             BSD3
 license-file:        LICENSE
