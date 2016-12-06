@@ -1,5 +1,11 @@
+{-# LANGUAGE CPP                  #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE UndecidableInstances #-}
+
+#if __GLASGOW_HASKELL__ < 710
+{-# LANGUAGE OverlappingInstances #-}
+#endif
+
 module Crypto.RNG.Class where
 
 import Control.Monad.Trans
@@ -13,7 +19,11 @@ class Monad m => CryptoRNG m where
               -> m ByteString
 
 -- | Generic, overlapping instance.
+#if __GLASGOW_HASKELL__ < 710
+instance (
+#else
 instance {-# OVERLAPPING #-} (
+#endif
     Monad (t m)
   , MonadTrans t
   , CryptoRNG m
