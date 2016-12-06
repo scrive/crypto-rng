@@ -1,0 +1,30 @@
+name:                crypto-rng
+version:             0.1.0.0
+synopsis:            Cryptographic random number generator.
+-- description:
+homepage:            https://github.com/scrive/crypto-rng
+license:             BSD3
+license-file:        LICENSE
+author:              Scrive AB
+maintainer:          Mikhail Glushenkov <mikhail.glushenkov@scrive.com>,
+                     Jonathan Jouty <jonathan@scrive.com>
+copyright:           Scrive AB
+category:            Crypto
+build-type:          Simple
+extra-source-files:  ChangeLog.md
+cabal-version:       >=1.10
+
+library
+  exposed-modules:     Crypto.RNG
+                       Crypto.RNG.Class
+                       Crypto.RNG.Utils
+  build-depends:       base < 5,
+                       DRBG,
+                       bytestring,
+                       exceptions,
+                       crypto-api,
+                       monad-control,
+                       mtl,
+                       transformers-base
+  hs-source-dirs:      src
+  default-language:    Haskell2010
