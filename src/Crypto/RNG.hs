@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE ExplicitForAll             #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -5,6 +6,11 @@
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE UndecidableInstances       #-}
+
+#if __GLASGOW_HASKELL__ < 710
+{-# LANGUAGE OverlappingInstances #-}
+#endif
+
 -- | Support for generation of cryptographically secure random
 -- numbers, based on the DRBG package.
 --
@@ -157,5 +163,5 @@ instance MonadBaseControl b m => MonadBaseControl b (CryptoRNGT m) where
   {-# INLINE liftBaseWith #-}
   {-# INLINE restoreM #-}
 
-instance MonadIO m => CryptoRNG (CryptoRNGT m) where
+instance {-# OVERLAPPABLE #-} MonadIO m => CryptoRNG (CryptoRNGT m) where
   randomBytes n = CryptoRNGT ask >>= liftIO . randomBytesIO n

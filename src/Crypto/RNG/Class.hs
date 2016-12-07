@@ -1,6 +1,7 @@
-{-# LANGUAGE CPP                  #-}
-{-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE CPP                     #-}
+{-# LANGUAGE ConstrainedClassMethods #-}
+{-# LANGUAGE FlexibleInstances       #-}
+{-# LANGUAGE UndecidableInstances    #-}
 
 #if __GLASGOW_HASKELL__ < 710
 {-# LANGUAGE OverlappingInstances #-}
@@ -15,15 +16,13 @@ import Data.ByteString (ByteString)
 -- | Monads carrying around the RNG state.
 class Monad m => CryptoRNG m where
   -- | Generate given number of cryptographically secure random bytes.
-  randomBytes :: ByteLength -- ^ number of bytes to generate
+  randomBytes :: CryptoRNG m
+              => ByteLength -- ^ number of bytes to generate
               -> m ByteString
 
 -- | Generic, overlapping instance.
-#if __GLASGOW_HASKELL__ < 710
-instance (
-#else
-instance {-# OVERLAPPING #-} (
-#endif
+
+instance {-# OVERLAPPABLE #-} (
     Monad (t m)
   , MonadTrans t
   , CryptoRNG m
