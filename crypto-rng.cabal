@@ -14,7 +14,7 @@ maintainer:          Mikhail Glushenkov <mikhail.glushenkov@scrive.com>,
 copyright:           Scrive AB
 category:            Crypto
 build-type:          Simple
-tested-with:         GHC == 7.8.4, GHC == 8.0.1
+tested-with:         GHC == 7.8.4, GHC == 7.10.3, GHC == 8.0.1
 extra-source-files:  ChangeLog.md
 cabal-version:       >=1.10
 
