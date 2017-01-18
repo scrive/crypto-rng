@@ -16,8 +16,7 @@ import Data.ByteString (ByteString)
 -- | Monads carrying around the RNG state.
 class Monad m => CryptoRNG m where
   -- | Generate given number of cryptographically secure random bytes.
-  randomBytes :: CryptoRNG m
-              => ByteLength -- ^ number of bytes to generate
+  randomBytes :: ByteLength -- ^ number of bytes to generate
               -> m ByteString
 
 -- | Generic, overlapping instance.
