@@ -48,6 +48,7 @@ import Control.Concurrent
 import Control.Monad.Base
 import Control.Monad.Catch
 import Control.Monad.Cont
+import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.Trans.Control
 import Crypto.Random
@@ -138,7 +139,9 @@ type InnerCryptoRNGT = ReaderT CryptoRNGState
 
 -- | Monad transformer with RNG state.
 newtype CryptoRNGT m a = CryptoRNGT { unCryptoRNGT :: InnerCryptoRNGT m a }
-  deriving (Alternative, Applicative, Functor, Monad, MonadBase b, MonadCatch, MonadIO, MonadMask, MonadPlus, MonadThrow, MonadTrans)
+  deriving ( Alternative, Applicative, Functor, Monad
+           , MonadBase b, MonadCatch, MonadError e, MonadIO, MonadMask, MonadPlus
+           , MonadThrow, MonadTrans )
 
 mapCryptoRNGT :: (m a -> n b) -> CryptoRNGT m a -> CryptoRNGT n b
 mapCryptoRNGT f m = withCryptoRNGState $ \s -> f (runCryptoRNGT s m)
