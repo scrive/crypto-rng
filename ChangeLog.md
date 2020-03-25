@@ -2,7 +2,7 @@
 
 ## 0.1.1.1  -- 2020-03-25
 
-* GHC-8.8 support (MonadFail).
+* GHC-8.8 support (MonadFail) and ghc 8.10.1 support.
 
 ## 0.1.1.0  -- 2019-10-08
 
