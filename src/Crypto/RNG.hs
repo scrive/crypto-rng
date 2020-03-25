@@ -81,7 +81,7 @@ randomBytesIO :: ByteLength -- ^ number of bytes to generate
               -> IO ByteString
 randomBytesIO n (CryptoRNGState gv) = do
   liftIO $ modifyMVar gv $ \g -> do
-    (bs, g') <- either (fail "Crypto.GlobalRandom.genBytes") return $
+    (bs, g') <- either (const (fail "Crypto.GlobalRandom.genBytes")) return $
                 genBytes n g
     return (g', bs)
 
@@ -139,9 +139,13 @@ type InnerCryptoRNGT = ReaderT CryptoRNGState
 
 -- | Monad transformer with RNG state.
 newtype CryptoRNGT m a = CryptoRNGT { unCryptoRNGT :: InnerCryptoRNGT m a }
-  deriving ( Alternative, Applicative, Functor, Monad
-           , MonadBase b, MonadCatch, MonadError e, MonadIO, MonadMask, MonadPlus
-           , MonadThrow, MonadTrans )
+  deriving ( Alternative, Applicative, Functor, Monad, MonadBase b
+           , MonadCatch, MonadError e, MonadIO, MonadMask, MonadPlus
+           , MonadThrow, MonadTrans
+#if MIN_VERSION_base(4,13,0)
+           , MonadFail
+#endif
+           )
 
 mapCryptoRNGT :: (m a -> n b) -> CryptoRNGT m a -> CryptoRNGT n b
 mapCryptoRNGT f m = withCryptoRNGState $ \s -> f (runCryptoRNGT s m)

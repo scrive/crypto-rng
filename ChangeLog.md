@@ -1,5 +1,9 @@
 # Revision history for crypto-rng
 
+## 0.1.1.1  -- 2020-03-25
+
+* GHC-8.8 support (MonadFail).
+
 ## 0.1.1.0  -- 2019-10-08
 
 * Added a 'MonadError' instance for 'CryptoRNGT'.
