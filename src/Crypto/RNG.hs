@@ -50,6 +50,7 @@ import Control.Monad.Catch
 import Control.Monad.Cont
 import Control.Monad.Except
 import Control.Monad.Reader
+import qualified Control.Monad.Fail as MF
 import Control.Monad.Trans.Control
 import Crypto.Random
 import Crypto.Random.DRBG
@@ -73,7 +74,7 @@ newCryptoRNGState = liftIO $ newGenIO >>= fmap CryptoRNGState . newMVar
 -- Should only be used for testing.
 unsafeCryptoRNGState :: MonadIO m => ByteString -> m CryptoRNGState
 unsafeCryptoRNGState s = liftIO $
-  either (fail . show) (fmap CryptoRNGState . newMVar) (newGen s)
+  either (MF.fail . show) (fmap CryptoRNGState . newMVar) (newGen s)
 
 -- | Generate given number of cryptographically secure random bytes.
 randomBytesIO :: ByteLength -- ^ number of bytes to generate
@@ -81,7 +82,7 @@ randomBytesIO :: ByteLength -- ^ number of bytes to generate
               -> IO ByteString
 randomBytesIO n (CryptoRNGState gv) = do
   liftIO $ modifyMVar gv $ \g -> do
-    (bs, g') <- either (const (fail "Crypto.GlobalRandom.genBytes")) return $
+    (bs, g') <- either (const (MF.fail "Crypto.GlobalRandom.genBytes")) return $
                 genBytes n g
     return (g', bs)
 
@@ -141,11 +142,7 @@ type InnerCryptoRNGT = ReaderT CryptoRNGState
 newtype CryptoRNGT m a = CryptoRNGT { unCryptoRNGT :: InnerCryptoRNGT m a }
   deriving ( Alternative, Applicative, Functor, Monad, MonadBase b
            , MonadCatch, MonadError e, MonadIO, MonadMask, MonadPlus
-           , MonadThrow, MonadTrans
-#if MIN_VERSION_base(4,13,0)
-           , MonadFail
-#endif
-           )
+           , MonadThrow, MonadTrans, MF.MonadFail)
 
 mapCryptoRNGT :: (m a -> n b) -> CryptoRNGT m a -> CryptoRNGT n b
 mapCryptoRNGT f m = withCryptoRNGState $ \s -> f (runCryptoRNGT s m)
