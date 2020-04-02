@@ -83,11 +83,8 @@ randomBytesIO :: ByteLength -- ^ number of bytes to generate
               -> IO ByteString
 randomBytesIO n (CryptoRNGState gv) = do
   liftIO $ modifyMVar gv $ \g -> do
-    (bs, g') <- case genBytes n g of
-      Left _ ->
-        fail "Crypto.GlobalRandom.genBytes"
-      Right res ->
-        return res
+    (bs, g') <- either (const (fail "Crypto.GlobalRandom.genBytes")) return $
+                genBytes n g
     return (g', bs)
 
 -- | Generate a cryptographically secure random number in given,
