@@ -43,13 +43,15 @@ module Crypto.RNG (
   , withCryptoRNGState
   ) where
 
+import Prelude hiding (fail)
 import Control.Applicative
 import Control.Concurrent
 import Control.Monad.Base
-import Control.Monad.Catch
-import Control.Monad.Cont
-import Control.Monad.Except
-import Control.Monad.Reader
+import Control.Monad.Catch hiding (fail)
+import Control.Monad.Cont hiding (fail)
+import Control.Monad.Except hiding (fail)
+import Control.Monad.Fail (MonadFail(..))
+import Control.Monad.Reader hiding (fail)
 import Control.Monad.Trans.Control
 import Crypto.Random
 import Crypto.Random.DRBG
@@ -81,7 +83,7 @@ randomBytesIO :: ByteLength -- ^ number of bytes to generate
               -> IO ByteString
 randomBytesIO n (CryptoRNGState gv) = do
   liftIO $ modifyMVar gv $ \g -> do
-    (bs, g') <- either (fail "Crypto.GlobalRandom.genBytes") return $
+    (bs, g') <- either (const (fail "Crypto.GlobalRandom.genBytes")) return $
                 genBytes n g
     return (g', bs)
 
@@ -141,7 +143,7 @@ type InnerCryptoRNGT = ReaderT CryptoRNGState
 newtype CryptoRNGT m a = CryptoRNGT { unCryptoRNGT :: InnerCryptoRNGT m a }
   deriving ( Alternative, Applicative, Functor, Monad
            , MonadBase b, MonadCatch, MonadError e, MonadIO, MonadMask, MonadPlus
-           , MonadThrow, MonadTrans )
+           , MonadThrow, MonadTrans, MonadFail )
 
 mapCryptoRNGT :: (m a -> n b) -> CryptoRNGT m a -> CryptoRNGT n b
 mapCryptoRNGT f m = withCryptoRNGState $ \s -> f (runCryptoRNGT s m)
