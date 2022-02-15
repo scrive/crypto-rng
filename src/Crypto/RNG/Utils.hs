@@ -1,13 +1,14 @@
 module Crypto.RNG.Utils where
 
 import Control.Monad
+import Data.Primitive.SmallArray
 
 import Crypto.RNG
 
 -- | Generate random string of specified length that contains allowed
 -- chars.
 randomString :: CryptoRNG m => Int -> [Char] -> m String
-randomString n allowed_chars =
-  sequence $ replicate n $ ((!!) allowed_chars `liftM` randomR (0, len))
+randomString n allowedList = map (indexSmallArray allowed)
+  <$> replicateM n (randomR (0, sizeofSmallArray allowed - 1))
   where
-    len = length allowed_chars - 1
+    allowed = smallArrayFromList allowedList
