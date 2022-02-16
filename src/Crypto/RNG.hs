@@ -51,7 +51,6 @@ import Crypto.Random.DRBG
 import Data.Bits
 import Data.ByteString (ByteString)
 import Data.Either
-import Data.Hashable
 import Data.Primitive.SmallArray
 import qualified Data.ByteString as BS
 import qualified System.Random as R
@@ -78,9 +77,13 @@ mkWord bs = BS.foldl' (\acc w -> shiftL acc 8 .|. fromIntegral w) 0 bs
 
 -- | Work with one of the RNGs from the pool.
 withRNG :: CryptoRNGState -> (RNG -> (a, RNG)) -> IO a
-withRNG (CryptoRNGState pool) f = liftIO $ do
-  tid <- hash <$> myThreadId
-  let mrng = pool `indexSmallArray` (tid `rem` sizeofSmallArray pool)
+withRNG (CryptoRNGState pool) f = do
+  -- Selection strategy is based on the id of a capability instead of an id of a
+  -- thread as that offers much better performance in a typical scenario when
+  -- the size of the pool is equal to the number of capabilities and there are
+  -- more threads than capabilities.
+  (cid, _) <- threadCapability =<< myThreadId
+  let mrng = pool `indexSmallArray` (cid `rem` sizeofSmallArray pool)
   modifyMVar mrng $ \rng -> do
     (a, newRng) <- pure $ f rng
     newRng `seq` pure (newRng, a)
@@ -93,6 +96,9 @@ newCryptoRNGState = newCryptoRNGStateSized =<< liftIO getNumCapabilities
 
 -- | Create a new 'CryptoRNGState', based on system entropy with the pool of a
 -- specific size.
+--
+-- /Note:/ making the pool bigger than the number of capabilities will not
+-- affect anything.
 newCryptoRNGStateSized
   :: MonadIO m
   => Int -- ^ Pool size.
