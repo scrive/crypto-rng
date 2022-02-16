@@ -1,15 +1,11 @@
-{-# LANGUAGE CPP                        #-}
-{-# LANGUAGE ExplicitForAll             #-}
+{-# LANGUAGE BangPatterns               #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase                 #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE UndecidableInstances       #-}
-
-#if __GLASGOW_HASKELL__ < 710
-{-# LANGUAGE OverlappingInstances #-}
-#endif
 
 -- | Support for generation of cryptographically secure random
 -- numbers, based on the DRBG package.
@@ -24,118 +20,115 @@
 -- The access to the RNG state is captured by a class.  By making
 -- instances of this class, client code can enjoy RNG generation from
 -- their own monads.
-module Crypto.RNG (
-  -- * CryproRNG class
+module Crypto.RNG
+  ( -- * CryptoRNG class
     module Crypto.RNG.Class
-  -- * Generation of strings and numbers
+    -- * Generation of strings and numbers
   , CryptoRNGState
   , newCryptoRNGState
+  , newCryptoRNGStateSized
   , unsafeCryptoRNGState
   , randomBytesIO
-  , randomR
-  -- * Generation of values in other types
-  , Random(..)
-  , boundedIntegralRandom
-  -- * Monad transformer for carrying rng state
+  , randomIO
+  , randomRIO
+    -- * Monad transformer for carrying rng state
   , CryptoRNGT
   , mapCryptoRNGT
   , runCryptoRNGT
   , withCryptoRNGState
   ) where
 
-import Prelude hiding (fail)
 import Control.Applicative
 import Control.Concurrent
 import Control.Monad.Base
-import Control.Monad.Catch hiding (fail)
-import Control.Monad.Cont hiding (fail)
-import Control.Monad.Except hiding (fail)
-import Control.Monad.Fail (MonadFail(..))
-import Control.Monad.Reader hiding (fail)
+import Control.Monad.Catch
+import Control.Monad.Cont
+import Control.Monad.Except
+import Control.Monad.Reader
 import Control.Monad.Trans.Control
 import Crypto.Random
 import Crypto.Random.DRBG
 import Data.Bits
-import Data.ByteString (ByteString, unpack)
-import Data.Int
-import Data.List
-import Data.Word
+import Data.ByteString (ByteString)
+import Data.Either
+import Data.Hashable
+import Data.Primitive.SmallArray
+import qualified Data.ByteString as BS
+import qualified System.Random as R
 
 import Crypto.RNG.Class
 
--- | The random number generator state.  It sits inside an MVar to
--- support concurrent thread access.
-newtype CryptoRNGState = CryptoRNGState (MVar (GenAutoReseed HashDRBG HashDRBG))
+-- | The random number generator state.
+newtype CryptoRNGState = CryptoRNGState (SmallArray (MVar RNG))
+
+-- | The random number generator.
+newtype RNG = RNG (GenBuffered (GenAutoReseed HashDRBG HashDRBG))
+
+instance R.RandomGen RNG where
+  split = error "split"
+  genWord32 (RNG g) = case genBytes 4 g of
+    Left err       -> error $ "genBytes failed: " ++ show err
+    Right (bs, g') -> (mkWord bs, RNG g')
+  genWord64 (RNG g) = case genBytes 8 g of
+    Left err       -> error $ "genBytes failed: " ++ show err
+    Right (bs, g') -> (mkWord bs, RNG g')
+
+mkWord :: (Bits a, Integral a) => ByteString -> a
+mkWord bs = BS.foldl' (\acc w -> shiftL acc 8 .|. fromIntegral w) 0 bs
+
+-- | Work with one of the RNGs from the pool.
+withRNG :: CryptoRNGState -> (RNG -> (a, RNG)) -> IO a
+withRNG (CryptoRNGState pool) f = liftIO $ do
+  tid <- hash <$> myThreadId
+  let mrng = pool `indexSmallArray` (tid `rem` sizeofSmallArray pool)
+  modifyMVar mrng $ \rng -> do
+    (a, newRng) <- pure $ f rng
+    newRng `seq` pure (newRng, a)
+
+----------------------------------------
 
 -- | Create a new 'CryptoRNGState', based on system entropy.
 newCryptoRNGState :: MonadIO m => m CryptoRNGState
-newCryptoRNGState = liftIO $ newGenIO >>= fmap CryptoRNGState . newMVar
+newCryptoRNGState = newCryptoRNGStateSized =<< liftIO getNumCapabilities
+
+-- | Create a new 'CryptoRNGState', based on system entropy with the pool of a
+-- specific size.
+newCryptoRNGStateSized
+  :: MonadIO m
+  => Int -- ^ Pool size.
+  -> m CryptoRNGState
+newCryptoRNGStateSized n = liftIO $ do
+  pool <- replicateM n $ newMVar . RNG =<< newGenIO
+  pure . CryptoRNGState $ smallArrayFromListN n pool
 
 -- | Create a new 'CryptoRNGState', based on a bytestring seed.
 -- Should only be used for testing.
-unsafeCryptoRNGState :: MonadIO m => ByteString -> m CryptoRNGState
-unsafeCryptoRNGState s = liftIO $
-  either (fail . show) (fmap CryptoRNGState . newMVar) (newGen s)
+unsafeCryptoRNGState
+  :: MonadIO m
+  => [ByteString]
+  -- ^ Seeds for each generator from the pool.
+  -> m CryptoRNGState
+unsafeCryptoRNGState ss = liftIO $ do
+  case partitionEithers $ map newGen ss of
+    ([], gens) -> do
+      pool <- mapM (newMVar . RNG) gens
+      pure . CryptoRNGState $ smallArrayFromList pool
+    (errs, _)  -> error $ show errs
 
 -- | Generate given number of cryptographically secure random bytes.
 randomBytesIO :: ByteLength -- ^ number of bytes to generate
               -> CryptoRNGState
               -> IO ByteString
-randomBytesIO n (CryptoRNGState gv) = do
-  liftIO $ modifyMVar gv $ \g -> do
-    (bs, g') <- either (const (fail "Crypto.GlobalRandom.genBytes")) return $
-                genBytes n g
-    return (g', bs)
+randomBytesIO n pool = withRNG pool $ \(RNG g) ->
+  case genBytes n g of
+    Left err       -> error $ "genBytes failed: " ++ show err
+    Right (bs, g') -> (bs, RNG g')
 
--- | Generate a cryptographically secure random number in given,
--- closed range.
-randomR :: (CryptoRNG m, Integral a) => (a, a) -> m a
-randomR (minb', maxb') = do
-  bs <- randomBytes byteLen
-  return . fromIntegral $
-    minb + foldl1' (\r a -> shiftL r 8 .|. a) (map toInteger (unpack bs))
-            `mod` range
-    where
-      minb, maxb, range :: Integer
-      minb = fromIntegral minb'
-      maxb = fromIntegral maxb'
-      range = maxb - minb + 1
-      byteLen = ceiling $ logBase 2 (fromIntegral range) / (8 :: Double)
+randomIO :: R.Uniform a => CryptoRNGState -> IO a
+randomIO pool = withRNG pool $ \g -> R.uniform g
 
--- | Helper function for making Random instances.
-boundedIntegralRandom :: forall m a. (CryptoRNG m, Integral a, Bounded a) => m a
-boundedIntegralRandom = randomR (minBound :: a, maxBound :: a)
-
--- | Class for generating cryptographically secure random values.
-class Random a where
-  random :: CryptoRNG m => m a
-
-instance Random Int16 where
-  random = boundedIntegralRandom
-
-instance Random Int32 where
-  random = boundedIntegralRandom
-
-instance Random Int64 where
-  random = boundedIntegralRandom
-
-instance Random Int where
-  random = boundedIntegralRandom
-
-instance Random Word8 where
-  random = boundedIntegralRandom
-
-instance Random Word16 where
-  random = boundedIntegralRandom
-
-instance Random Word32 where
-  random = boundedIntegralRandom
-
-instance Random Word64 where
-  random = boundedIntegralRandom
-
-instance Random Word where
-  random = boundedIntegralRandom
+randomRIO :: R.UniformRange a => (a, a) -> CryptoRNGState -> IO a
+randomRIO bounds pool = withRNG pool $ \g -> R.uniformR bounds g
 
 type InnerCryptoRNGT = ReaderT CryptoRNGState
 
@@ -149,7 +142,7 @@ mapCryptoRNGT :: (m a -> n b) -> CryptoRNGT m a -> CryptoRNGT n b
 mapCryptoRNGT f m = withCryptoRNGState $ \s -> f (runCryptoRNGT s m)
 
 runCryptoRNGT :: CryptoRNGState -> CryptoRNGT m a -> m a
-runCryptoRNGT gv m = runReaderT (unCryptoRNGT m) gv
+runCryptoRNGT pool m = runReaderT (unCryptoRNGT m) pool
 
 withCryptoRNGState :: (CryptoRNGState -> m a) -> CryptoRNGT m a
 withCryptoRNGState = CryptoRNGT . ReaderT
@@ -158,15 +151,13 @@ instance MonadTransControl CryptoRNGT where
   type StT CryptoRNGT a = StT InnerCryptoRNGT a
   liftWith = defaultLiftWith CryptoRNGT unCryptoRNGT
   restoreT = defaultRestoreT CryptoRNGT
-  {-# INLINE liftWith #-}
-  {-# INLINE restoreT #-}
 
 instance MonadBaseControl b m => MonadBaseControl b (CryptoRNGT m) where
   type StM (CryptoRNGT m) a = ComposeSt CryptoRNGT m a
   liftBaseWith = defaultLiftBaseWith
   restoreM     = defaultRestoreM
-  {-# INLINE liftBaseWith #-}
-  {-# INLINE restoreM #-}
 
 instance {-# OVERLAPPABLE #-} MonadIO m => CryptoRNG (CryptoRNGT m) where
-  randomBytes n = CryptoRNGT ask >>= liftIO . randomBytesIO n
+  randomBytes n  = CryptoRNGT ask >>= liftIO . randomBytesIO n
+  random         = CryptoRNGT ask >>= liftIO . randomIO
+  randomR bounds = CryptoRNGT ask >>= liftIO . randomRIO bounds
