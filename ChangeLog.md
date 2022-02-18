@@ -1,5 +1,9 @@
 # Revision history for crypto-rng
 
+## 0.3.0.0  -- 2022-02-21
+
+* Use the entropy package instead of DRBG.
+
 ## 0.2.0.1  -- 2022-02-16
 
 * Better selection strategy for picking generators from the pool.
