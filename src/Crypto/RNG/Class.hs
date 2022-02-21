@@ -1,18 +1,15 @@
-{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
 module Crypto.RNG.Class where
 
 import Control.Monad.Trans
-import Crypto.Random.DRBG
 import Data.ByteString (ByteString)
 import System.Random (Uniform, UniformRange)
 
 -- | Monads carrying around the RNG state.
 class Monad m => CryptoRNG m where
   -- | Generate a given number of cryptographically secure random bytes.
-  randomBytes
-    :: ByteLength -- ^ A number of bytes to generate.
-    -> m ByteString
+  randomBytes :: Int -> m ByteString
 
   -- | Generate a cryptographically secure value uniformly distributed over all
   -- possible values of that type.
@@ -22,8 +19,8 @@ class Monad m => CryptoRNG m where
   randomR :: UniformRange a => (a, a) -> m a
 
 -- | Generic, overlapping instance.
-instance {-# OVERLAPPABLE #-} (
-    Monad (t m)
+instance {-# OVERLAPPABLE #-}
+  ( Monad (t m)
   , MonadTrans t
   , CryptoRNG m
   ) => CryptoRNG (t m) where
