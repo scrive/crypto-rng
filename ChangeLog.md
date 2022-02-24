@@ -1,5 +1,9 @@
 # Revision history for crypto-rng
 
+## 0.3.0.1  -- 2022-02-24
+
+* Improve performance with multiple capabilities.
+
 ## 0.3.0.0  -- 2022-02-21
 
 * Use the entropy package instead of DRBG.

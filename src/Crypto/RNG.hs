@@ -35,6 +35,7 @@ import Control.Monad.Reader
 import Control.Monad.Trans.Control
 import Data.Bits
 import Data.ByteString (ByteString)
+import Data.Primitive.SmallArray
 import System.Entropy
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Short as SBS
@@ -43,13 +44,10 @@ import qualified System.Random.Stateful as R
 import Crypto.RNG.Class
 
 -- | The random number generator state.
-newtype CryptoRNGState = CryptoRNGState (MVar Buffer)
+data CryptoRNGState = CryptoRNGState !Int !(SmallArray (MVar Buffer))
 
 -- | A buffer of random bytes for immediate consumption.
-data Buffer = Buffer
-  { maxSize :: !Int
-  , bytes   :: !BS.ByteString
-  }
+newtype Buffer = Buffer { bytes :: BS.ByteString }
 
 instance R.StatefulGen CryptoRNGState IO where
   uniformWord8  st = mkWord <$> randomBytesIO 1 st
@@ -65,40 +63,57 @@ mkWord bs = BS.foldl' (\acc w -> shiftL acc 8 .|. fromIntegral w) 0 bs
 
 -- | Create a new 'CryptoRNGState' based on system entropy with a buffer size of
 -- 32KB.
+--
+-- One buffer per capability is created.
 newCryptoRNGState :: MonadIO m => m CryptoRNGState
 newCryptoRNGState = newCryptoRNGStateSized $ 32 * 1024
 
--- | Create a new 'CryptoRNGState' based on system entropy with a buffer of
+-- | Create a new 'CryptoRNGState' based on system entropy with buffers of
 -- specified size.
+--
+-- One buffer per capability is created.
 newCryptoRNGStateSized
   :: MonadIO m
   => Int -- ^ Buffer size.
   -> m CryptoRNGState
-newCryptoRNGStateSized bufferSize = liftIO $ do
-  when (bufferSize <= 0) $ do
+newCryptoRNGStateSized maxBufSize = liftIO $ do
+  when (maxBufSize <= 0) $ do
     error "Buffer size must be larger than 0"
-  CryptoRNGState <$> newMVar (Buffer bufferSize BS.empty)
+  n <- getNumCapabilities
+  bufs <- replicateM n . newMVar $ Buffer BS.empty
+  pure $ CryptoRNGState maxBufSize (smallArrayFromListN n bufs)
 
 -- | Generate a number of cryptographically secure random bytes.
 randomBytesIO :: Int -> CryptoRNGState -> IO ByteString
-randomBytesIO n (CryptoRNGState rng) = modifyMVar rng $ \buf -> do
-  (rs, newBuf) <- generateBytes buf n []
-  pure (newBuf, BS.concat rs)
+randomBytesIO n (CryptoRNGState maxBufSize bufs) = do
+  (cid, _) <- threadCapability =<< myThreadId
+  let mbuf = bufs `indexSmallArray` (cid `rem` sizeofSmallArray bufs)
+  modifyMVar mbuf $ \buf -> do
+    -- Unroll the first step of 'generateBytes' as the vast majority of time
+    -- it's enough to get the full amount of requested bytes.
+    let (r, newBytes) = BS.splitAt n (bytes buf)
+    let k = n - BS.length r
+    if k <= 0
+      then newBytes `seq` pure (Buffer newBytes, r)
+      else do
+        (rs, newBuf) <- generateBytes maxBufSize buf k [r]
+        pure (newBuf, BS.concat rs)
 
 generateBytes
-  :: Buffer
+  :: Int
+  -> Buffer
   -> Int
   -> [BS.ByteString]
   -> IO ([BS.ByteString], Buffer)
-generateBytes buf n acc = do
+generateBytes maxBufSize buf n acc = do
   (r, newBytes) <- BS.splitAt n <$> if BS.null (bytes buf)
-                                    then getEntropy (maxSize buf)
+                                    then getEntropy maxBufSize
                                     else pure (bytes buf)
-  let newBuf = buf { bytes = newBytes }
+  let newBuf = Buffer newBytes
       k = n - BS.length r
   newBuf `seq` if k <= 0
     then pure (r : acc, newBuf)
-    else generateBytes newBuf k (r : acc)
+    else generateBytes maxBufSize newBuf k (r : acc)
 
 ----------------------------------------
 
