@@ -14,7 +14,7 @@ maintainer:          Andrzej Rybczak <andrzej.rybczak@scrive.com>
 copyright:           Scrive AB
 category:            Crypto
 build-type:          Simple
-tested-with:         GHC == { 8.10.7, 9.0.2, 9.2.8, 9.4.8, 9.6.7, 9.8.4, 9.10.2, 9.12.2 }
+tested-with:         GHC == { 8.8.4, 8.10.7, 9.0.2, 9.2.8, 9.4.8, 9.6.7, 9.8.4, 9.10.2, 9.12.2 }
 extra-source-files:  ChangeLog.md
 
 source-repository head
