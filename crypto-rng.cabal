@@ -1,3 +1,4 @@
+cabal-version:       3.0
 name:                crypto-rng
 version:             0.3.0.2
 synopsis:            Cryptographically secure random number generator.
@@ -6,17 +7,15 @@ description:         Convenient wrapper for the source of random bytes
                      provided by the @entropy@ package.
 
 homepage:            https://github.com/scrive/crypto-rng
-license:             BSD3
+license:             BSD-3-Clause
 license-file:        LICENSE
 author:              Scrive AB
-maintainer:          Andrzej Rybczak <anrzej.rybczak@scrive.com>
+maintainer:          Andrzej Rybczak <andrzej.rybczak@scrive.com>
 copyright:           Scrive AB
 category:            Crypto
 build-type:          Simple
-tested-with:         GHC ==8.8.4 || ==8.10.7 || ==9.0.2 || ==9.2.8 || ==9.4.8 || ==9.6.3
-                      || ==9.8.1
+tested-with:         GHC == { 8.8.4, 8.10.7, 9.0.2, 9.2.8, 9.4.8, 9.6.7, 9.8.4, 9.10.2, 9.12.2 }
 extra-source-files:  ChangeLog.md
-cabal-version:       >=1.10
 
 source-repository head
   type:     git
