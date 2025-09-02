@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -43,6 +44,10 @@ import qualified System.Random.Stateful as R
 
 import Crypto.RNG.Class
 
+#if MIN_VERSION_random(1,3,0)
+import qualified Data.MemPack as MP
+#endif
+
 -- | The random number generator state.
 data CryptoRNGState = CryptoRNGState !Int !(SmallArray (MVar Buffer))
 
@@ -55,6 +60,9 @@ instance R.StatefulGen CryptoRNGState IO where
   uniformWord32 st = mkWord <$> randomBytesIO 4 st
   uniformWord64 st = mkWord <$> randomBytesIO 8 st
   uniformShortByteString n st = SBS.toShort <$> randomBytesIO n st
+#if MIN_VERSION_random(1,3,0)
+  uniformByteArrayM isPinned n st = MP.packByteArray isPinned <$> randomBytesIO n st
+#endif
 
 mkWord :: (Bits a, Integral a) => ByteString -> a
 mkWord bs = BS.foldl' (\acc w -> shiftL acc 8 .|. fromIntegral w) 0 bs
