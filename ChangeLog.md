@@ -4,6 +4,8 @@
 
 * Fix a bug that made the source of random bytes repeat bytes it already
   returned.
+* If the list of allowed chars is empty, `randomString` raises an error. It
+  used to return a string of garbage that crashed the program on use.
 * Add support for `random` >= 1.3.
 * Drop support for GHC 8.8.
 

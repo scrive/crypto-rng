@@ -1,7 +1,10 @@
+{-# LANGUAGE TypeApplications #-}
 module Main (main) where
 
+import Control.Exception
 import Control.Monad
 import Crypto.RNG
+import Crypto.RNG.Utils
 import Test.Tasty
 import Test.Tasty.HUnit
 import qualified Data.ByteString as BS
@@ -10,7 +13,25 @@ import qualified Data.Set as S
 main :: IO ()
 main = defaultMain $ testGroup "crypto-rng"
   [ testGroup "randomBytesIO" $ map bufferRefill configurations
+  , testGroup "randomString"
+    [ testCase "draws from the allowed chars" $ do
+        rng <- newCryptoRNGState
+        s <- runCryptoRNGT rng $ randomString 1000 alphabet
+        assertEqual "length" 1000 (length s)
+        assertBool "every char is allowed" $ all (`elem` alphabet) s
+        assertBool "the whole alphabet shows up" $ all (`elem` s) alphabet
+    , testCase "rejects an empty list of allowed chars" $ do
+        rng <- newCryptoRNGState
+        r <- try @ErrorCall $
+          evaluate . length =<< runCryptoRNGT rng (randomString 8 "")
+        case r of
+          Left _ -> pure ()
+          Right len -> assertFailure $ "returned a string of length " ++ show len
+    ]
   ]
+  where
+    alphabet :: [Char]
+    alphabet = ['a' .. 'z'] ++ ['0' .. '9']
 
 -- | Buffer size paired with the request sizes to cycle through.
 --
