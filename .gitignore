@@ -1,5 +1,10 @@
+/.cabal-sandbox
+cabal.project.local*
+cabal.sandbox.config
 /dist
 /dist-newstyle
-/.cabal-sandbox
-cabal.sandbox.config
+/.ghc-tags.yaml
 .ghc.environment.*
+/.projectile-cache.eld
+/TAGS
+/TAGS.mtime
