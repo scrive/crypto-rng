@@ -108,6 +108,8 @@ randomBytesIO n (CryptoRNGState maxBufSize bufs) = do
         (rs, newBuf) <- generateBytes maxBufSize k [r]
         pure (newBuf, BS.concat rs)
 
+-- The chunks accumulate in reverse order. Their lengths do not depend on the
+-- random bytes, so the order does not affect the distribution.
 generateBytes
   :: Int
   -> Int
