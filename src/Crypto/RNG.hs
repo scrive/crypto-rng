@@ -106,31 +106,15 @@ randomBytesIO n (CryptoRNGState maxBufSize bufs) = do
   (cid, _) <- threadCapability =<< myThreadId
   let mbuf = bufs `indexSmallArray` (cid `rem` sizeofSmallArray bufs)
   modifyMVar mbuf $ \buf -> do
-    -- Unroll the first step of 'generateBytes' as the vast majority of time
-    -- it's enough to get the full amount of requested bytes.
     let (r, newBytes) = BS.splitAt n (bytes buf)
-    let k = n - BS.length r
+        k = n - BS.length r
     if k <= 0
       then newBytes `seq` pure (Buffer newBytes, r)
-      -- The buffer is drained at this point, so it's not passed along.
       else do
-        (rs, newBuf) <- generateBytes maxBufSize k [r]
-        pure (newBuf, BS.concat rs)
-
--- The chunks accumulate in reverse order. Their lengths do not depend on the
--- random bytes, so the order does not affect the distribution.
-generateBytes
-  :: Int
-  -> Int
-  -> [BS.ByteString]
-  -> IO ([BS.ByteString], Buffer)
-generateBytes maxBufSize n acc = do
-  (r, newBytes) <- BS.splitAt n <$> getEntropy maxBufSize
-  let newBuf = Buffer newBytes
-      k = n - BS.length r
-  newBuf `seq` if k <= 0
-    then pure (r : acc, newBuf)
-    else generateBytes maxBufSize k (r : acc)
+        -- The buffer is drained at this point. One call to the entropy source
+        -- covers the missing bytes and the new buffer, whichever is larger.
+        (rest, newerBytes) <- BS.splitAt k <$> getEntropy (max maxBufSize k)
+        newerBytes `seq` pure (Buffer newerBytes, r <> rest)
 
 ----------------------------------------
 
