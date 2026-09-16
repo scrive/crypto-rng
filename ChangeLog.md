@@ -3,6 +3,7 @@
 ## 0.3.0.2  -- ????-??-??
 
 * Add support for `random` >= 1.3.
+* Drop support for GHC 8.8.
 
 ## 0.3.0.1  -- 2022-02-24
 
