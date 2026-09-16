@@ -34,10 +34,9 @@ library
                      , bytestring        >= 0.10.8
                      , entropy           >= 0.4
                      , exceptions        >= 0.8.3
-                     , mempack           >= 0.1.2.0
                      , monad-control     >= 1.0.1
                      , mtl               >= 2.2
-                     , primitive         >= 0.7
+                     , primitive         >= 0.7.1
                      , random            >= 1.2     && <1.4
                      , transformers-base >= 0.4.4
 
@@ -55,6 +54,8 @@ test-suite test
                      , bytestring
                      , containers  >= 0.6
                      , crypto-rng
+                     , primitive   >= 0.7.1
+                     , random      >= 1.2
                      , tasty       >= 1.4
                      , tasty-hunit >= 0.10
 

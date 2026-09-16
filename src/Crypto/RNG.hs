@@ -48,7 +48,8 @@ import qualified System.Random.Stateful as R
 import Crypto.RNG.Class
 
 #if MIN_VERSION_random(1,3,0)
-import qualified Data.MemPack as MP
+import Data.Primitive.ByteArray
+import qualified Data.ByteString.Unsafe as BSU
 #endif
 
 -- | The random number generator state.
@@ -64,7 +65,13 @@ instance R.StatefulGen CryptoRNGState IO where
   uniformWord64 st = mkWord <$> randomBytesIO 8 st
   uniformShortByteString n st = SBS.toShort <$> randomBytesIO n st
 #if MIN_VERSION_random(1,3,0)
-  uniformByteArrayM isPinned n st = MP.packByteArray isPinned <$> randomBytesIO n st
+  uniformByteArrayM isPinned n st = do
+    bs <- randomBytesIO n st
+    let len = BS.length bs
+    mba <- if isPinned then newPinnedByteArray len else newByteArray len
+    BSU.unsafeUseAsCStringLen bs $ \(ptr, _) ->
+      copyPtrToMutableByteArray mba 0 ptr len
+    unsafeFreezeByteArray mba
 #endif
 
 mkWord :: (Bits a, Integral a) => ByteString -> a
