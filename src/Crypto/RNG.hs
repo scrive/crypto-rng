@@ -5,11 +5,13 @@
 {-# LANGUAGE UndecidableInstances #-}
 -- | Support for generation of cryptographically secure random numbers.
 --
--- This is a convenience layer on top of "System.Entropy", which allows you to
--- pull random values by means of the class 'CryptoRNG', while keeping the state
--- of the random number generator (RNG) inside a monad. The state is protected
--- by an MVar, which means that concurrent generation of random values from
--- several threads works straight out of the box.
+-- This is a convenience layer on top of "System.Entropy". You pull random
+-- values with the class 'CryptoRNG'. A monad keeps the state of the random
+-- number generator (RNG).
+--
+-- The state holds one buffer per capability, and an MVar protects each
+-- buffer. A thread uses the buffer of the capability it runs on, so threads
+-- on different capabilities do not contend.
 module Crypto.RNG
   ( -- * CryptoRNG class
     module Crypto.RNG.Class
