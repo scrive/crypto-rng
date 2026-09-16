@@ -39,6 +39,7 @@ import Control.Monad.Trans.Control
 import Data.Bits
 import Data.ByteString (ByteString)
 import Data.Primitive.SmallArray
+import GHC.Stack
 import System.Entropy
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Short as SBS
@@ -83,7 +84,7 @@ newCryptoRNGState = newCryptoRNGStateSized $ 32 * 1024
 --
 -- One buffer per capability is created.
 newCryptoRNGStateSized
-  :: MonadIO m
+  :: (HasCallStack, MonadIO m)
   => Int -- ^ Buffer size.
   -> m CryptoRNGState
 newCryptoRNGStateSized maxBufSize = liftIO $ do
