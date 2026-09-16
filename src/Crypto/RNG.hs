@@ -53,12 +53,14 @@ data CryptoRNGState = CryptoRNGState !Int !(SmallArray (MVar Buffer))
 -- | A buffer of random bytes for immediate consumption.
 newtype Buffer = Buffer { bytes :: BS.ByteString }
 
+-- The results are strict, because a lazy result would hold the slice of the
+-- buffer and thus the whole buffer until it is evaluated.
 instance R.StatefulGen CryptoRNGState IO where
-  uniformWord8  st = mkWord <$> randomBytesIO 1 st
-  uniformWord16 st = mkWord <$> randomBytesIO 2 st
-  uniformWord32 st = mkWord <$> randomBytesIO 4 st
-  uniformWord64 st = mkWord <$> randomBytesIO 8 st
-  uniformShortByteString n st = SBS.toShort <$> randomBytesIO n st
+  uniformWord8  st = mkWord <$!> randomBytesIO 1 st
+  uniformWord16 st = mkWord <$!> randomBytesIO 2 st
+  uniformWord32 st = mkWord <$!> randomBytesIO 4 st
+  uniformWord64 st = mkWord <$!> randomBytesIO 8 st
+  uniformShortByteString n st = SBS.toShort <$!> randomBytesIO n st
 #if MIN_VERSION_random(1,3,0)
   uniformByteArrayM isPinned n st = do
     bs <- randomBytesIO n st

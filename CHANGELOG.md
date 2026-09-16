@@ -3,6 +3,8 @@
   returned.
 * If the list of allowed chars is empty, `randomString` raises an error. It
   used to return a string of garbage that crashed the program on use.
+* A value from `random` no longer keeps the internal buffer of random bytes
+  alive until the value is evaluated.
 * Add support for `random` >= 1.3.
 * Drop support for GHC 8.8.
 
