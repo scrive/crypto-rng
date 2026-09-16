@@ -103,25 +103,23 @@ randomBytesIO n (CryptoRNGState maxBufSize bufs) = do
     let k = n - BS.length r
     if k <= 0
       then newBytes `seq` pure (Buffer newBytes, r)
+      -- The buffer is drained at this point, so it's not passed along.
       else do
-        (rs, newBuf) <- generateBytes maxBufSize buf k [r]
+        (rs, newBuf) <- generateBytes maxBufSize k [r]
         pure (newBuf, BS.concat rs)
 
 generateBytes
   :: Int
-  -> Buffer
   -> Int
   -> [BS.ByteString]
   -> IO ([BS.ByteString], Buffer)
-generateBytes maxBufSize buf n acc = do
-  (r, newBytes) <- BS.splitAt n <$> if BS.null (bytes buf)
-                                    then getEntropy maxBufSize
-                                    else pure (bytes buf)
+generateBytes maxBufSize n acc = do
+  (r, newBytes) <- BS.splitAt n <$> getEntropy maxBufSize
   let newBuf = Buffer newBytes
       k = n - BS.length r
   newBuf `seq` if k <= 0
     then pure (r : acc, newBuf)
-    else generateBytes maxBufSize newBuf k (r : acc)
+    else generateBytes maxBufSize k (r : acc)
 
 ----------------------------------------
 

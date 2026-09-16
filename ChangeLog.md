@@ -2,6 +2,8 @@
 
 ## 0.3.0.2  -- ????-??-??
 
+* Fix a bug that made the source of random bytes repeat bytes it already
+  returned.
 * Add support for `random` >= 1.3.
 * Drop support for GHC 8.8.
 

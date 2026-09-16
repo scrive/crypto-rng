@@ -1,0 +1,69 @@
+module Main (main) where
+
+import Control.Monad
+import Crypto.RNG
+import Test.Tasty
+import Test.Tasty.HUnit
+import qualified Data.ByteString as BS
+import qualified Data.Set as S
+
+main :: IO ()
+main = defaultMain $ testGroup "crypto-rng"
+  [ testGroup "randomBytesIO" $ map bufferRefill configurations
+  ]
+
+-- | Buffer size paired with the request sizes to cycle through.
+--
+-- A request that is larger than the bytes left in the buffer is what triggers a
+-- refill, so in each configuration the request sizes do not divide the buffer
+-- size evenly.
+configurations :: [(Int, [Int])]
+configurations =
+  [ (16, [10])
+  , (16, [1, 7, 13, 40])
+  , (32, [100])
+  , (64, [20])
+  , (32 * 1024, [100])
+  , (1, [1, 2, 3])
+  ]
+
+-- | A refill used to hand out the bytes of the drained buffer a second time, so
+-- a returned chunk repeated its own prefix and the repeat showed up again in
+-- the following chunk.
+bufferRefill :: (Int, [Int]) -> TestTree
+bufferRefill (bufSize, sizes) = testCase name $ do
+  rng <- newCryptoRNGStateSized bufSize
+  chunks <- forM requestSizes $ \n -> do
+    chunk <- randomBytesIO n rng
+    assertEqual ("length of a " ++ show n ++ " byte request") n (BS.length chunk)
+    assertBool ("a " ++ show n ++ " byte request repeats its own prefix") $
+      not (repeatsPrefix 4 chunk)
+    pure chunk
+  let ws = windows 8 $ BS.concat chunks
+  assertEqual "repeated windows" 0 (length ws - S.size (S.fromList ws))
+  where
+    name :: String
+    name = "buffer of " ++ show bufSize ++ " bytes, requests of " ++ show sizes
+
+    -- Enough requests to drain and refill the buffer several times.
+    requestSizes :: [Int]
+    requestSizes = takeUntilTotal (max 30000 (4 * bufSize)) (cycle sizes)
+
+    takeUntilTotal :: Int -> [Int] -> [Int]
+    takeUntilTotal _ [] = []
+    takeUntilTotal remaining (n : ns)
+      | remaining <= 0 = []
+      | otherwise = n : takeUntilTotal (remaining - n) ns
+
+    -- A shift by less than minLen bytes is left out, because a short match
+    -- happens by chance often enough.
+    repeatsPrefix :: Int -> BS.ByteString -> Bool
+    repeatsPrefix minLen chunk = any matches [1 .. BS.length chunk - minLen]
+      where
+        matches :: Int -> Bool
+        matches p = BS.drop p chunk == BS.take (BS.length chunk - p) chunk
+
+    windows :: Int -> BS.ByteString -> [BS.ByteString]
+    windows k bs
+      | BS.length bs < k = []
+      | otherwise = BS.take k bs : windows k (BS.drop 1 bs)
