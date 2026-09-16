@@ -1,20 +1,20 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE TypeApplications #-}
 module Main (main) where
 
 import Control.Exception
 import Control.Monad
-import Crypto.RNG
-import Crypto.RNG.Utils
+import Data.ByteString qualified as BS
+import Data.Set qualified as S
 import Test.Tasty
 import Test.Tasty.HUnit
-import qualified Data.ByteString as BS
-import qualified Data.Set as S
+
+import Crypto.RNG
+import Crypto.RNG.Utils
 
 #if MIN_VERSION_random(1,3,0)
+import Data.ByteString.Short qualified as SBS
 import Data.Primitive.ByteArray
-import qualified Data.ByteString.Short as SBS
-import qualified System.Random.Stateful as R
+import System.Random.Stateful qualified as R
 #endif
 
 main :: IO ()

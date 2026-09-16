@@ -22,8 +22,21 @@ source-repository head
   type:     git
   location: https://github.com/scrive/crypto-rng.git
 
+common language
+  ghc-options:         -Wall -Wcompat -Wredundant-constraints
+                       -Werror=prepositive-qualified-module
+
+  default-language:    Haskell2010
+
+  default-extensions:  FlexibleInstances
+                       GeneralizedNewtypeDeriving
+                       ImportQualifiedPost
+                       MultiParamTypeClasses
+                       TypeApplications
+                       UndecidableInstances
+
 library
-  ghc-options:        -Wall -Wcompat
+  import:              language
 
   exposed-modules:     Crypto.RNG
                        Crypto.RNG.Class
@@ -42,13 +55,13 @@ library
 
   hs-source-dirs:      src
 
-  default-language:    Haskell2010
-
 test-suite test
+  import:              language
+
   type:                exitcode-stdio-1.0
   main-is:             Main.hs
 
-  ghc-options:         -Wall -Wcompat -threaded -rtsopts
+  ghc-options:         -threaded -rtsopts
 
   build-depends:       base
                      , bytestring
@@ -60,5 +73,3 @@ test-suite test
                      , tasty-hunit >= 0.10
 
   hs-source-dirs:      test
-
-  default-language:    Haskell2010

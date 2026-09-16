@@ -1,8 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE UndecidableInstances #-}
 -- | Support for generation of cryptographically secure random numbers.
 --
 -- This is a convenience layer on top of "System.Entropy". You pull random
@@ -37,19 +33,18 @@ import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.Trans.Control
 import Data.Bits
-import Data.ByteString (ByteString)
+import Data.ByteString qualified as BS
+import Data.ByteString.Short qualified as SBS
 import Data.Primitive.SmallArray
 import GHC.Stack
 import System.Entropy
-import qualified Data.ByteString as BS
-import qualified Data.ByteString.Short as SBS
-import qualified System.Random.Stateful as R
+import System.Random.Stateful qualified as R
 
 import Crypto.RNG.Class
 
 #if MIN_VERSION_random(1,3,0)
+import Data.ByteString.Unsafe qualified as BSU
 import Data.Primitive.ByteArray
-import qualified Data.ByteString.Unsafe as BSU
 #endif
 
 -- | The random number generator state.
@@ -74,7 +69,7 @@ instance R.StatefulGen CryptoRNGState IO where
     unsafeFreezeByteArray mba
 #endif
 
-mkWord :: (Bits a, Integral a) => ByteString -> a
+mkWord :: (Bits a, Integral a) => BS.ByteString -> a
 mkWord bs = BS.foldl' (\acc w -> shiftL acc 8 .|. fromIntegral w) 0 bs
 
 ----------------------------------------
@@ -102,7 +97,7 @@ newCryptoRNGStateSized maxBufSize = liftIO $ do
   pure $ CryptoRNGState maxBufSize (smallArrayFromListN n bufs)
 
 -- | Generate a number of cryptographically secure random bytes.
-randomBytesIO :: Int -> CryptoRNGState -> IO ByteString
+randomBytesIO :: Int -> CryptoRNGState -> IO BS.ByteString
 randomBytesIO n (CryptoRNGState maxBufSize bufs) = do
   (cid, _) <- threadCapability =<< myThreadId
   let mbuf = bufs `indexSmallArray` (cid `rem` sizeofSmallArray bufs)

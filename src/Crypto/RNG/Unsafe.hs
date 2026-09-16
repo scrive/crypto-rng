@@ -1,6 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE UndecidableInstances #-}
 -- | Support for generation of __non cryptographically secure__ random numbers
 -- for testing purposes.
 module Crypto.RNG.Unsafe
@@ -26,8 +24,8 @@ import Control.Monad.Catch
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.Trans.Control
-import qualified Data.ByteString as BS
-import qualified System.Random as R
+import Data.ByteString qualified as BS
+import System.Random qualified as R
 
 import Crypto.RNG.Class
 
