@@ -1,6 +1,8 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
-module Crypto.RNG.Class where
+module Crypto.RNG.Class
+  ( CryptoRNG(..)
+  ) where
 
 import Control.Monad.Trans
 import Data.ByteString (ByteString)

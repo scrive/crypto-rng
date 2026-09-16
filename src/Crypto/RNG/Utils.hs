@@ -1,4 +1,6 @@
-module Crypto.RNG.Utils where
+module Crypto.RNG.Utils
+  ( randomString
+  ) where
 
 import Control.Monad
 import Data.Primitive.SmallArray
