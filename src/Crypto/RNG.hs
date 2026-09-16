@@ -109,12 +109,12 @@ randomBytesIO n (CryptoRNGState maxBufSize bufs) = do
     let (r, newBytes) = BS.splitAt n (bytes buf)
         k = n - BS.length r
     if k <= 0
-      then newBytes `seq` pure (Buffer newBytes, r)
+      then pure (Buffer newBytes, r)
       else do
         -- The buffer is drained at this point. One call to the entropy source
         -- covers the missing bytes and the new buffer, whichever is larger.
         (rest, newerBytes) <- BS.splitAt k <$> getEntropy (max maxBufSize k)
-        newerBytes `seq` pure (Buffer newerBytes, r <> rest)
+        pure (Buffer newerBytes, r <> rest)
 
 ----------------------------------------
 
