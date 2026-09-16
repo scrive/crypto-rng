@@ -34,7 +34,6 @@ import Control.Monad.Reader
 import Control.Monad.Trans.Control
 import Data.Bits
 import Data.ByteString qualified as BS
-import Data.ByteString.Short qualified as SBS
 import Data.Primitive.SmallArray
 import GHC.Stack
 import System.Entropy
@@ -45,6 +44,8 @@ import Crypto.RNG.Class
 #if MIN_VERSION_random(1,3,0)
 import Data.ByteString.Unsafe qualified as BSU
 import Data.Primitive.ByteArray
+#else
+import Data.ByteString.Short qualified as SBS
 #endif
 
 -- | The random number generator state.
@@ -60,7 +61,6 @@ instance R.StatefulGen CryptoRNGState IO where
   uniformWord16 st = mkWord <$!> randomBytesIO 2 st
   uniformWord32 st = mkWord <$!> randomBytesIO 4 st
   uniformWord64 st = mkWord <$!> randomBytesIO 8 st
-  uniformShortByteString n st = SBS.toShort <$!> randomBytesIO n st
 #if MIN_VERSION_random(1,3,0)
   uniformByteArrayM isPinned n st = do
     bs <- randomBytesIO n st
@@ -69,6 +69,8 @@ instance R.StatefulGen CryptoRNGState IO where
     BSU.unsafeUseAsCStringLen bs $ \(ptr, _) ->
       copyPtrToMutableByteArray mba 0 ptr len
     unsafeFreezeByteArray mba
+#else
+  uniformShortByteString n st = SBS.toShort <$!> randomBytesIO n st
 #endif
 
 mkWord :: (Bits a, Integral a) => BS.ByteString -> a
