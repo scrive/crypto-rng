@@ -1,4 +1,4 @@
-# crypto-rng-0.3.0.2 (????-??-??)
+# crypto-rng-0.3.0.2 (2026-09-17)
 * Fix a bug that made the source of random bytes repeat bytes it already
   returned.
 * If the list of allowed chars is empty, `randomString` raises an error. It
